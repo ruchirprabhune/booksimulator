@@ -3,730 +3,832 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- CRITICAL FIX: Disable aggressive browser caching -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-
-    <title>Professional Writer's Book Visualizer (Responsive)</title>
-    
+    <title>Book Simulator</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
-        :root {
-            /* Responsive Dimensions based on ratio, not fixed pixels */
-            --book-aspect-ratio: 0.65; /* Standard 6"x9" book ratio */
-            --max-page-width: 450px;
-            --min-margin: 10px;
-            --sidebar-width: 250px;
-        }
-        
-        body {
-            font-family: 'Times New Roman', serif;
-            display: flex;
-            flex-direction: column; 
-            align-items: center;
-            background-color: #f0f0e8; 
-            background-image: url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ccc' fill-opacity='0.15' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zm1 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
+        * {
             margin: 0;
             padding: 0;
-            min-height: 100vh;
-            /* Allow vertical scrolling only if content is too large vertically */
-            overflow-y: auto; 
-            overflow-x: hidden;
+            box-sizing: border-box;
         }
 
-        /* --- Global Layout --- */
-        .main-content {
-            flex-grow: 1;
+        :root {
+            --page-width: 420px;
+            --page-height: 600px;
+            --sidebar-width: 280px;
+            --toolbar-width: 80px;
+        }
+
+        body {
+            font-family: 'Crimson Text', 'Georgia', serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
-            width: 100%;
-            padding: 20px 0;
-            min-height: 100vh;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
         }
 
+        /* Burger Menu Button */
+        .burger-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+
+        .burger-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .burger-btn .material-icons {
+            font-size: 28px;
+            color: #333;
+        }
+
+        /* Left Sidebar */
+        .left-sidebar {
+            position: fixed;
+            left: -300px;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: #2c3e50;
+            color: white;
+            padding: 80px 20px 20px 20px;
+            transition: left 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+        }
+
+        .left-sidebar.open {
+            left: 0;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .page-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .page-item {
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        .page-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .page-item.active {
+            background: #3498db;
+        }
+
+        .page-item.has-highlight {
+            background: rgba(241, 196, 15, 0.3);
+            border: 2px solid #f1c40f;
+        }
+
+        /* Right Toolbar */
+        .right-toolbar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: var(--toolbar-width);
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+            z-index: 100;
+            padding: 20px 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .toolbar-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: #555;
+        }
+
+        .toolbar-btn:hover {
+            background: #f0f0f0;
+            color: #3498db;
+        }
+
+        .toolbar-btn .material-icons {
+            font-size: 24px;
+        }
+
+        .toolbar-separator {
+            width: 40px;
+            height: 1px;
+            background: #ddd;
+            margin: 5px 0;
+        }
+
+        .font-select, .font-size-select {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+
+        .color-input {
+            width: 50px;
+            height: 40px;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        /* Book Container */
         .book-container {
             display: flex;
-            gap: 1.5vw; /* Responsive gap */
-            justify-content: center;
-            align-items: center;
-            /* Ensure the book container shrinks on smaller screens */
-            max-width: calc(2 * var(--max-page-width) + 2 * 1.5vw); 
-            width: 95%; 
-            padding: 20px;
+            gap: 40px;
+            perspective: 1500px;
+            z-index: 10;
         }
 
-        /* --- Page Styling (CRITICAL FIXES FOR RESPONSIVENESS) --- */
         .page {
-            /* Max width for desktop viewing */
-            max-width: var(--max-page-width); 
-            /* Page width is responsive, takes half the container space */
-            width: 50%; 
-            /* Maintain book ratio responsively */
-            aspect-ratio: var(--book-aspect-ratio); 
-            
-            background-color: #fffaf0; 
-            border: 1px solid #dcdcdc; 
-            padding: 4% 6%; /* Responsive padding based on page size */
-            box-sizing: border-box;
-            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3); 
+            width: var(--page-width);
+            height: var(--page-height);
+            background: #fffef7;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             position: relative;
-            cursor: text; 
-            font-size: clamp(14px, 1.2vw, 16px); /* Fluid typography */
-            line-height: 1.6;
-            overflow: hidden; 
-            min-width: 250px; /* Prevent page from becoming too narrow */
+            overflow: hidden;
+            border-radius: 4px;
         }
 
-        /* Single page view for mobile (less than 900px wide) */
-        @media (max-width: 900px) {
-            .book-container {
-                flex-direction: column;
-                gap: 20px;
-                padding: 10px;
-            }
-            .page {
-                width: 90%; /* Single page takes up most of the screen width */
-                max-width: 400px;
-                margin: 0 auto;
-            }
-            /* Hide the right page on mobile for single-page view */
-            .page:last-child {
-                display: none; 
-            }
-            .toolbar-right {
-                width: 100%;
-                height: auto;
-                position: static;
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: center;
-                padding-bottom: 20px;
-                box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
-            }
-            .controls-nav {
-                flex-direction: row;
-                gap: 10px;
-                border-bottom: none;
-                width: auto;
-            }
+        .page-left {
+            transform-origin: right center;
+            border-right: 1px solid #e0e0e0;
         }
-        
-        /* Ensure content takes up the full inner space of the page */
+
+        .page-right {
+            transform-origin: left center;
+            border-left: 1px solid #e0e0e0;
+        }
+
         .page-content {
-            height: 100%; 
-            overflow: hidden; 
+            width: 100%;
+            height: calc(100% - 40px);
+            outline: none;
+            font-size: 16px;
+            line-height: 1.8;
+            overflow: hidden;
+            word-wrap: break-word;
         }
 
-        /* Basic content styling */
-        .page h2 {
-            font-family: 'Times New Roman', serif;
-            font-size: 1.2em;
-            margin-top: 1.5em;
-            margin-bottom: 1em;
+        .page-number {
+            position: absolute;
+            bottom: 15px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .page-left .page-number {
+            left: 40px;
+        }
+
+        .page-right .page-number {
+            right: 40px;
+        }
+
+        /* Search highlight styling */
+        mark.search-highlight {
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 2px 4px;
+            border-radius: 2px;
             font-weight: bold;
         }
 
-        /* Page Numbering */
-        .page-number {
-            position: absolute; 
-            bottom: 15px; 
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 0.8em;
-            color: #7f8c8d; 
-            pointer-events: none;
-        }
-        
-        /* --- SIDEBAR & TOOLBAR --- */
-
-        .sidebar-left {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: var(--sidebar-width);
-            height: 100%;
-            background-color: #2c3e50; 
-            color: white;
-            padding: 20px 10px;
-            overflow-y: auto;
-            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.4);
-            transform: translateX(-100%); 
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            z-index: 1000;
-        }
-        .sidebar-left.active { transform: translateX(0); }
-        .toolbar-right {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 70px; 
-            height: 100%;
-            background-color: #ffffff;
-            box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
-            z-index: 50;
+        /* Navigation Controls */
+        .nav-controls {
             display: flex;
             flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
             align-items: center;
-            padding: 10px 0;
-            gap: 10px;
-            overflow-y: auto;
         }
-        
-        .toolbar-right button, #sidebar-toggle {
-             transition: all 0.2s;
-        }
-        
-        /* Standard Toolbar Button Styles */
-        #add-spread-btn { color: #3498db !important; background-color: #f0f8ff !important; border: 1px solid #3498db55; }
-        #add-spread-btn:hover { color: white !important; background-color: #3498db !important; }
-        #save-all-btn-toolbar { color: white !important; background-color: #2ecc71 !important; }
-        #delete-spread-btn { color: white !important; background-color: #e74c3c !important; }
 
-        /* General UI Styling */
-        .toolbar-right button, .sidebar-left button { border-radius: 4px; }
-        .sidebar-left input { padding: 8px; border-radius: 4px; border: none; }
+        .page-input {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            width: 60px;
+            padding: 8px;
+            font-size: 11px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px 0;
+            transition: all 0.2s;
+        }
+
+        .btn-add {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-save {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            :root {
+                --page-width: 350px;
+                --page-height: 500px;
+            }
+            
+            .book-container {
+                gap: 20px;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 </head>
-<body tabindex="0"> 
-    
-    <i class="material-icons" id="sidebar-toggle" title="Toggle Search/Navigation">menu</i>
+<body>
+    <!-- Burger Menu Button -->
+    <button class="burger-btn" id="burgerBtn">
+        <i class="material-icons">menu</i>
+    </button>
 
-    <div class="sidebar-left" id="sidebar-left">
-        <h2>Book Navigation</h2>
-        <input type="text" id="search-input" placeholder="Dynamic Search..." style="width: 90%; margin-bottom: 10px;">
-        <div id="page-list">
-            <!-- Page List items generated here -->
-        </div>
-        <button id="save-all-btn" title="Manual Save" style="background-color: #2ecc71; width: 90%; margin-top: 20px;">Save All Content</button>
-        
-        <button id="clear-storage-btn"><i class="material-icons" style="font-size: 16px;">delete_sweep</i> CLEAR CORRUPTED DATA</button>
+    <!-- Left Sidebar -->
+    <div class="left-sidebar" id="leftSidebar">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search in book...">
+        <div class="page-list" id="pageList"></div>
     </div>
 
-    <div class="toolbar-right">
-        
-        <div class="controls-nav">
-            <button id="prev-page-btn" title="Previous Spread (or Left Arrow)"><i class="material-icons">arrow_back</i></button>
-            <label for="page-input">Page</label>
-            <input type="number" id="page-input" min="1" value="1" step="2">
-            <button id="go-btn" title="Go to Page"><i class="material-icons">send</i></button>
-            <button id="next-page-btn" title="Next Spread (or Right Arrow)"><i class="material-icons">arrow_forward</i></button>
+    <!-- Right Toolbar -->
+    <div class="right-toolbar">
+        <!-- Navigation -->
+        <div class="nav-controls">
+            <button class="toolbar-btn" id="prevBtn" title="Previous Spread (Left Arrow)">
+                <i class="material-icons">arrow_back</i>
+            </button>
+            <input type="number" class="page-input" id="pageInput" min="1" value="1">
+            <button class="toolbar-btn" id="nextBtn" title="Next Spread (Right Arrow)">
+                <i class="material-icons">arrow_forward</i>
+            </button>
         </div>
-        
-        <span style="border-bottom: 1px solid #ddd; width: 90%; margin: 5px 0;"></span>
-        
-        <button id="add-spread-btn" title="Add New Spread (Pages)"><i class="material-icons">add_box</i></button>
-        
-        <span style="border-bottom: 1px solid #ddd; width: 90%; margin: 5px 0;"></span>
-        
-        <button title="Bold" onclick="formatDoc('bold')"><i class="material-icons">format_bold</i></button>
-        <button title="Italic" onclick="formatDoc('italic')"><i class="material-icons">format_italic</i></button>
-        <button title="Underline" onclick="formatDoc('underline')"><i class="material-icons">format_underlined</i></button>
-        
-        <input type="color" id="color-picker" title="Text Color" onchange="formatDoc('foreColor', this.value)">
-        
-        <span style="border-bottom: 1px solid #ddd; width: 90%; margin: 5px 0;"></span>
 
-        <button title="Align Left" onclick="formatDoc('justifyLeft')"><i class="material-icons">format_align_left</i></button>
-        <button title="Center" onclick="formatDoc('justifyCenter')"><i class="material-icons">format_align_center</i></button>
-        <button title="Align Right" onclick="formatDoc('justifyRight')"><i class="material-icons">format_align_right</i></button>
-        <button title="Justify" onclick="formatDoc('justifyFull')"><i class="material-icons">format_align_justify</i></button>
-        
-        <span style="border-bottom: 1px solid #ccc; width: 90%; margin: 10px 0;"></span>
+        <div class="toolbar-separator"></div>
 
-        <button id="delete-spread-btn" title="Delete Current Spread"><i class="material-icons">delete_forever</i></button>
-        <button title="Remove Formatting" onclick="formatDoc('removeFormat')"><i class="material-icons">format_clear</i></button>
-        <button id="save-all-btn-toolbar" title="Save All Content (F10)" style="background-color: #2ecc71;"><i class="material-icons">save</i></button>
-        
+        <!-- Font Controls -->
+        <select class="font-select" id="fontFamily" title="Font Family">
+            <option value="'Crimson Text', Georgia, serif">Crimson</option>
+            <option value="'Calibri', Arial, sans-serif">Calibri</option>
+            <option value="'Times New Roman', serif">Times</option>
+            <option value="'Arial', sans-serif">Arial</option>
+            <option value="'Georgia', serif">Georgia</option>
+            <option value="'Courier New', monospace">Courier</option>
+        </select>
+
+        <select class="font-size-select" id="fontSize" title="Font Size">
+            <option value="12px">12</option>
+            <option value="14px">14</option>
+            <option value="16px" selected>16</option>
+            <option value="18px">18</option>
+            <option value="20px">20</option>
+            <option value="24px">24</option>
+        </select>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Text Formatting -->
+        <button class="toolbar-btn" data-command="bold" title="Bold">
+            <i class="material-icons">format_bold</i>
+        </button>
+        <button class="toolbar-btn" data-command="italic" title="Italic">
+            <i class="material-icons">format_italic</i>
+        </button>
+        <button class="toolbar-btn" data-command="underline" title="Underline">
+            <i class="material-icons">format_underlined</i>
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Text Alignment -->
+        <button class="toolbar-btn" data-command="justifyLeft" title="Align Left">
+            <i class="material-icons">format_align_left</i>
+        </button>
+        <button class="toolbar-btn" data-command="justifyCenter" title="Center">
+            <i class="material-icons">format_align_center</i>
+        </button>
+        <button class="toolbar-btn" data-command="justifyRight" title="Align Right">
+            <i class="material-icons">format_align_right</i>
+        </button>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Color Picker -->
+        <input type="color" class="color-input" id="textColor" value="#000000" title="Text Color">
+
+        <div class="toolbar-separator"></div>
+
+        <!-- Actions -->
+        <button class="action-btn btn-add" id="addSpreadBtn" title="Add Spread at End">+ ADD</button>
+        <button class="action-btn btn-delete" id="deleteSpreadBtn" title="Delete Current Spread">DELETE</button>
+        <button class="action-btn btn-save" id="saveBtn" title="Export as PDF">PDF</button>
     </div>
 
-    <div class="main-content">
-        
-        <div class="book-container">
-            <div class="page" id="left-page" data-page-index="0">
-                <div class="page-content" id="left-content" contenteditable="true"></div> 
-                <div class="page-number" id="left-number">1</div>
-            </div>
-            <div class="page" id="right-page" data-page-index="1">
-                <div class="page-content" id="right-content" contenteditable="true"></div>
-                <div class="page-number" id="right-number">2</div>
-            </div>
+    <!-- Book Pages -->
+    <div class="book-container">
+        <div class="page page-left" id="leftPage">
+            <div class="page-content" contenteditable="true" id="leftContent"></div>
+            <div class="page-number" id="leftNumber">1</div>
+        </div>
+        <div class="page page-right" id="rightPage">
+            <div class="page-content" contenteditable="true" id="rightContent"></div>
+            <div class="page-number" id="rightNumber">2</div>
         </div>
     </div>
-    
+
     <script>
-        // --- Setup and Data ---
+        // Book State
+        let bookPages = [];
+        let currentSpread = 0;
+        let currentSearchQuery = '';
+        const STORAGE_KEY = 'bookSimulatorContent';
 
-        let currentPage = 1;
-        const BOOK_STORAGE_KEY = 'writerBookContent';
-        
-        // Load content from Local Storage or use a mock if none exists
-        // CLEANED UP CONTENT: Removed all the messy inline CSS from the previous submission.
-        let bookContent = JSON.parse(localStorage.getItem(BOOK_STORAGE_KEY)) || [
-            "<h2>Chapter 1 — The Letter by the Sea</h2><p>The day had begun as plain as warm bread and wind. The horizon stretched silver and quiet, and gulls drew uneven circles above the old fishing pier.</p><p>Elara had walked this beach every dawn for a year, waiting for a sign that never came. Her brother had vanished in the storm that swallowed three boats last winter, and though the sea had returned ropes, barrels, and one broken oar, it had never returned him. Still, she walked.</p><p>That morning the tide left something new—a sealed letter wrapped in seaweed, its wax as red as a drop of blood. It lay half‑buried beside her footprints.</p><p><em>To the one who still watches the horizon</em>, the letter read in ink faded by salt.</p><p>When she broke the seal open, her pulse faltered. Inside was one line, uneven and hurried:<br><em>When the lighthouse goes dark, follow the music.</em></p><p>All day she turned the words over. The lighthouse hadn’t gone dark in fifty years, not since her father maintained it, not since before the sea began keeping secrets.</p><p>But at twilight, when the clouds folded low and gulls hid themselves in fog, the beam atop the old tower sputtered once—twice—and died.</p><p>Page 2. This page is empty, waiting for the overflow text from the previous page.</p>",
-            "<h2>Chapter 2 — The Song Beneath the Waves</h2><p>The ocean at night looked almost alive, breathing slow and deep. Elara rowed into it, the lantern on her prow swinging in rhythm with her heartbeat.</p><p>Her father used to say the sea had moods. Tonight it was listening.</p><p>The melody rose out of the fog first as vibration—a half‑heard hum running down her bones. Then came the notes: low, tremulous, like a violin being played somewhere in the deep. The sound drifted from the direction of the lighthouse, and though every sensible part of her begged her to turn back, she kept rowing.</p><p>The tower’s shadow loomed, jagged and black. Its base was now half‑submerged, waves lapping over steps that once led to the old keeper’s door. She tied her boat to what remained of the railing and climbed, one wet stone at a time. Inside, broken lenses gleamed faintly in the lantern light.</p><p>Water covered the floor. And there, floating upright in the flooded chamber, was a violin. Its strings shimmered though no one played them, and around it, the glow of her lantern bent as if drawn toward the sound.</p><p>When her fingertips brushed the neck of the violin, her breath caught. Images burst under her skin: a younger version of her brother laughing on that very pier, her father tuning the tower’s great lens to the rhythm of waves, and storms that ended not with wrecks—but with music</p><p>Then the light collapsed all at once, leaving her in darkness thick and humming.</p>",
-            "<h2>Chapter 3 — The Keeper’s Promise</h2><p>When she woke, the sky outside the tower was streaked rose and violet. The sun was rising again, but something in the world had shifted. The clock above the door ticked backward for a single breath before righting itself.</p><p>Elara stood at the railing, her lantern relit, but the flame burned silver now instead of gold. In her other hand she held the violin—silent, but warm. The lighthouse lens caught the morning’s first light and sent it out across the sea, turning the horizon molten.</p><p>She had not found a body, nor a ghost. What she found was continuity: sound woven into sea‑foam, voices folded into mist. The light she re‑kindled shone steadier than before, beating with her own pulse.</p><p>From that day, sailors spoke of a beacon that sang. They said its glow moved with the rhythm of waves, like a heartbeat under the ocean’s skin.</p><p>And sometimes, at dawn, when the tide curled just low enough, a letter would drift ashore again—ink washed thin, seal cracked by salt—waiting for the next soul who refused to stop watching the horizon.</p><p><em>Addressed to: whoever still hears the song.</em></p>"
+        // Default story content
+        const defaultStory = [
+            `<h2>Chapter 1 — The Letter by the Sea</h2>
+<p>The day had begun as plain as warm bread and wind. The horizon stretched silver and quiet, and gulls drew uneven circles above the old fishing pier.</p>
+<p>Elara had walked this beach every dawn for a year, waiting for a sign that never came. Her brother had vanished in the storm that swallowed three boats last winter, and though the sea had returned ropes, barrels, and one broken oar, it had never returned him. Still, she walked.</p>
+<p>That morning the tide left something new—a sealed letter wrapped in seaweed, its wax as red as a drop of blood. It lay half‑buried beside her footprints.</p>
+<p><em>To the one who still watches the horizon</em>, the letter read in ink faded by salt.</p>`,
+            `<p>When she broke the seal open, her pulse faltered. Inside was one line, uneven and hurried:<br><em>When the lighthouse goes dark, follow the music.</em></p>
+<p>All day she turned the words over. The lighthouse hadn't gone dark in fifty years, not since her father maintained it, not since before the sea began keeping secrets.</p>
+<p>But at twilight, when the clouds folded low and gulls hid themselves in fog, the beam atop the old tower sputtered once—twice—and died.</p>`,
+            `<h2>Chapter 2 — The Song Beneath the Waves</h2>
+<p>The ocean at night looked almost alive, breathing slow and deep. Elara rowed into it, the lantern on her prow swinging in rhythm with her heartbeat.</p>
+<p>Her father used to say the sea had moods. Tonight it was listening.</p>
+<p>The melody rose out of the fog first as vibration—a half‑heard hum running down her bones. Then came the notes: low, tremulous, like a violin being played somewhere in the deep. The sound drifted from the direction of the lighthouse, and though every sensible part of her begged her to turn back, she kept rowing.</p>`,
+            `<p>The tower's shadow loomed, jagged and black. Its base was now half‑submerged, waves lapping over steps that once led to the old keeper's door. She tied her boat to what remained of the railing and climbed, one wet stone at a time. Inside, broken lenses gleamed faintly in the lantern light.</p>
+<p>Water covered the floor. And there, floating upright in the flooded chamber, was a violin. Its strings shimmered though no one played them, and around it, the glow of her lantern bent as if drawn toward the sound.</p>
+<p>When her fingertips brushed the neck of the violin, her breath caught. Images burst under her skin: a younger version of her brother laughing on that very pier, her father tuning the tower's great lens to the rhythm of waves, and storms that ended not with wrecks—but with music.</p>
+<p>Then the light collapsed all at once, leaving her in darkness thick and humming.</p>`,
+            `<h2>Chapter 3 — The Keeper's Promise</h2>
+<p>When she woke, the sky outside the tower was streaked rose and violet. The sun was rising again, but something in the world had shifted. The clock above the door ticked backward for a single breath before righting itself.</p>
+<p>Elara stood at the railing, her lantern relit, but the flame burned silver now instead of gold. In her other hand she held the violin—silent, but warm. The lighthouse lens caught the morning's first light and sent it out across the sea, turning the horizon molten.</p>`,
+            `<p>She had not found a body, nor a ghost. What she found was continuity: sound woven into sea‑foam, voices folded into mist. The light she re‑kindled shone steadier than before, beating with her own pulse.</p>
+<p>From that day, sailors spoke of a beacon that sang. They said its glow moved with the rhythm of waves, like a heartbeat under the ocean's skin.</p>
+<p>And sometimes, at dawn, when the tide curled just low enough, a letter would drift ashore again—ink washed thin, seal cracked by salt—waiting for the next soul who refused to stop watching the horizon.</p>
+<p><em>Addressed to: whoever still hears the song.</em></p>`
         ];
 
-        // --- Rich Text Formatting Function (using document.execCommand) ---
-        function formatDoc(command, value = null) {
-            document.execCommand(command, false, value);
-            
-            const activeElement = document.activeElement;
-            if (activeElement && activeElement.closest('.page')) {
-                 activeElement.closest('.page-content').focus();
+        // Initialize
+        function init() {
+            loadBook();
+            updateDisplay();
+            attachEventListeners();
+        }
+
+        // Load book from storage or create default pages
+        function loadBook() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                bookPages = JSON.parse(saved);
+            } else {
+                bookPages = [...defaultStory];
             }
         }
-        window.formatDoc = formatDoc; 
 
-        // --- CORE FUNCTION: Split Text and Cascade ---
+        // Save book to storage
+        function saveBook() {
+            // Remove highlights before saving
+            const cleanPages = bookPages.map(page => 
+                page.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1')
+            );
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanPages));
+        }
 
-        function splitContent(contentEl) {
-            const pageEl = contentEl.closest('.page');
-            let pageIndex = parseInt(pageEl.dataset.pageIndex);
+        // Highlight search terms in content
+        function highlightSearchTerms(content, query) {
+            if (!query) return content;
             
-            // Loop until the active page no longer overflows
-            while (contentEl.scrollHeight > contentEl.clientHeight) {
+            // Remove existing highlights
+            content = content.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
+            
+            // Add new highlights
+            const regex = new RegExp(`(${query})`, 'gi');
+            return content.replace(regex, '<mark class="search-highlight">$1</mark>');
+        }
+
+        // Update display
+        function updateDisplay() {
+            const leftContent = document.getElementById('leftContent');
+            const rightContent = document.getElementById('rightContent');
+            const leftNumber = document.getElementById('leftNumber');
+            const rightNumber = document.getElementById('rightNumber');
+            const pageInput = document.getElementById('pageInput');
+
+            // Update left page
+            if (currentSpread < bookPages.length) {
+                let content = bookPages[currentSpread] || '';
+                if (currentSearchQuery) {
+                    content = highlightSearchTerms(content, currentSearchQuery);
+                }
+                leftContent.innerHTML = content;
+                leftNumber.textContent = currentSpread + 1;
+                leftContent.contentEditable = true;
+            }
+
+            // Update right page
+            if (currentSpread + 1 < bookPages.length) {
+                let content = bookPages[currentSpread + 1] || '';
+                if (currentSearchQuery) {
+                    content = highlightSearchTerms(content, currentSearchQuery);
+                }
+                rightContent.innerHTML = content;
+                rightNumber.textContent = currentSpread + 2;
+                rightContent.contentEditable = true;
+            } else {
+                rightContent.innerHTML = '';
+                rightNumber.textContent = '';
+                rightContent.contentEditable = false;
+            }
+
+            pageInput.value = currentSpread + 1;
+            updatePageList();
+        }
+
+        // Update page list in sidebar
+        function updatePageList() {
+            const pageList = document.getElementById('pageList');
+            pageList.innerHTML = '';
+
+            for (let i = 0; i < bookPages.length; i += 2) {
+                const item = document.createElement('div');
+                item.className = 'page-item';
+                if (i === currentSpread) {
+                    item.classList.add('active');
+                }
+
+                // Check if this spread has search matches
+                if (currentSearchQuery) {
+                    const leftText = (bookPages[i] || '').toLowerCase();
+                    const rightText = (bookPages[i + 1] || '').toLowerCase();
+                    if (leftText.includes(currentSearchQuery.toLowerCase()) || 
+                        rightText.includes(currentSearchQuery.toLowerCase())) {
+                        item.classList.add('has-highlight');
+                    }
+                }
+
+                const leftNum = i + 1;
+                const rightNum = (i + 1 < bookPages.length) ? i + 2 : '';
+                const range = rightNum ? `${leftNum}-${rightNum}` : `${leftNum}`;
                 
-                let overflowHTML = '';
+                const preview = (bookPages[i] || '').replace(/<[^>]*>/g, '').substring(0, 40);
+                item.innerHTML = `<strong>Pages ${range}</strong><br><small>${preview}...</small>`;
                 
-                // 1. Create a dummy element to find the exact overflow point
-                const tempDiv = contentEl.cloneNode(true);
+                item.onclick = () => {
+                    currentSpread = i;
+                    updateDisplay();
+                    document.getElementById('leftSidebar').classList.remove('open');
+                };
+
+                pageList.appendChild(item);
+            }
+        }
+
+        // Handle text overflow
+        function handleOverflow(contentEl, pageIndex) {
+            const container = contentEl;
+            
+            if (container.scrollHeight > container.clientHeight) {
+                let html = container.innerHTML;
+                let tempDiv = document.createElement('div');
+                tempDiv.style.width = container.clientWidth + 'px';
+                tempDiv.style.height = container.clientHeight + 'px';
                 tempDiv.style.position = 'absolute';
                 tempDiv.style.visibility = 'hidden';
-                tempDiv.style.height = contentEl.clientHeight + 'px';
-                tempDiv.style.width = contentEl.clientWidth + 'px';
                 tempDiv.style.overflow = 'hidden';
                 document.body.appendChild(tempDiv);
-                
-                // Iteratively remove children from the bottom until the content fits
-                while (tempDiv.scrollHeight > tempDiv.clientHeight && tempDiv.lastChild) {
+
+                let overflowHTML = '';
+                tempDiv.innerHTML = html;
+
+                while (tempDiv.scrollHeight > tempDiv.clientHeight && tempDiv.childNodes.length > 0) {
                     const lastChild = tempDiv.lastChild;
-                    overflowHTML = lastChild.outerHTML ? lastChild.outerHTML + overflowHTML : lastChild.textContent + overflowHTML;
+                    if (lastChild.outerHTML) {
+                        overflowHTML = lastChild.outerHTML + overflowHTML;
+                    } else {
+                        overflowHTML = lastChild.textContent + overflowHTML;
+                    }
                     tempDiv.removeChild(lastChild);
                 }
-                
+
                 document.body.removeChild(tempDiv);
-                
-                if (!overflowHTML) break; 
 
-                // 2. Set the current page content to only the fitting part
-                contentEl.innerHTML = tempDiv.innerHTML;
-                
-                // 3. Save the clean content for the current page
-                bookContent[pageIndex] = contentEl.innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-                
-                // 4. Handle Next Page (Auto-Creation and Transfer)
-                let nextPageIndex = pageIndex + 1;
-                
-                // Auto-create pages if necessary (in spreads of 2)
-                if (nextPageIndex >= bookContent.length) {
-                    bookContent.push(''); 
-                    bookContent.push('');
-                }
-                
-                // 5. Transfer the overflow to the next page, adding it to any existing content
-                const cleanOverflowHTML = overflowHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-                bookContent[nextPageIndex] = cleanOverflowHTML + bookContent[nextPageIndex];
-                
-                // 6. Save the entire array to Local Storage
-                localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(bookContent));
-                
-                // 7. Determine next focus and page index
-                
-                let focusEl = null;
-                if (pageIndex === currentPage - 1) {
-                    updateBookDisplay(); 
-                    focusEl = document.getElementById('right-content'); 
-                } else if (pageIndex === currentPage) {
-                    currentPage = nextPageIndex;
-                    updateBookDisplay();
-                    focusEl = document.getElementById('left-content');
-                } else if (pageIndex > currentPage + 1) {
-                    currentPage = nextPageIndex % 2 === 0 ? nextPageIndex - 1 : nextPageIndex;
-                    updateBookDisplay(); 
-                    focusEl = document.getElementById('left-content');
-                }
-                
-                // Force focus on the element containing the overflow text
-                if (focusEl) focusEl.focus();
+                bookPages[pageIndex] = tempDiv.innerHTML;
+                container.innerHTML = tempDiv.innerHTML;
 
-                pageIndex++;
-            }
-        }
-
-        // --- Event Listener for Input and Overflow ---
-        
-        function checkAndHandleContent(event) {
-            const contentEl = event.target;
-            
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Delete', 'Backspace'].includes(event.key)) {
-                return;
-            }
-
-            // 1. Force Page Break on Ctrl+Enter
-            if (event.ctrlKey && event.key === 'Enter') {
-                event.preventDefault();
-                splitContent(contentEl);
-                return;
-            }
-
-            // 2. Handle Overflow
-            setTimeout(() => {
-                // IMPORTANT: Before checking scrollHeight, save content back to bookContent 
-                // in case the user edited content that is NOT overflowing, 
-                // preventing loss if an overflow happens later in the chain.
-                saveCurrentSpreadContent(false);
-                
-                if (contentEl.scrollHeight > contentEl.clientHeight) {
-                    splitContent(contentEl);
-                }
-            }, 0);
-        }
-
-        // Dedicated save function for just the two visible pages
-        function saveCurrentSpreadContent(showAlert = true) {
-            const leftContentEl = document.getElementById('left-content');
-            const rightContentEl = document.getElementById('right-content');
-            
-            const extractAndClean = (contentDiv, pageElId) => {
-                const pageEl = document.getElementById(pageElId);
-                const index = parseInt(pageEl.dataset.pageIndex);
-                if (contentDiv && !isNaN(index) && index >= 0 && index < bookContent.length) {
-                    let content = contentDiv.innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-                    bookContent[index] = content.trim();
-                }
-            };
-            extractAndClean(leftContentEl, 'left-page');
-            extractAndClean(rightContentEl, 'right-page');
-            localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(bookContent));
-        }
-        
-        // --- Page Update Functions ---
-
-        function updatePageContent(index, contentId, numberId, defaultText) {
-            const pageEl = document.getElementById(contentId.replace('-content', '-page'));
-            const contentEl = document.getElementById(contentId);
-            const numberEl = document.getElementById(numberId);
-
-            // Hide page if index is out of bounds for the array length
-            if (index < 0 || index >= bookContent.length) {
-                pageEl.style.visibility = 'hidden';
-                return;
-            } else {
-                pageEl.style.visibility = 'visible';
-            }
-
-            // Load clean content and set up event listeners
-            contentEl.innerHTML = bookContent[index]; 
-            numberEl.textContent = index + 1;
-            pageEl.dataset.pageIndex = index; 
-            
-            contentEl.contentEditable = true;
-            contentEl.oninput = checkAndHandleContent; 
-            contentEl.onpaste = (e) => {
-                e.preventDefault(); 
-                const text = (e.clipboardData || window.clipboardData).getData('text/html') || 
-                             (e.clipboardData || window.clipboardData).getData('text/plain');
-                document.execCommand('insertHTML', false, text); 
-                setTimeout(() => splitContent(contentEl), 0); 
-            };
-        }
-
-
-        function updateBookDisplay() {
-            const leftPageIndex = currentPage - 1;
-            const rightPageIndex = currentPage;
-
-            updatePageContent(leftPageIndex, 'left-content', 'left-number', `<p><h2>Cover/Start</h2>Click next to begin reading.</p>`);
-            
-            // On mobile, the right page is hidden by CSS, so we only show the left one.
-            if (window.innerWidth > 900) {
-                 updatePageContent(rightPageIndex, 'right-content', 'right-number', `<p><h2>The End</h2>Thank you for visualizing your work!</p>`);
-            } else {
-                 // On mobile, we still load the content but keep it invisible via CSS to allow navigation logic to work
-                 // The CSS @media query handles the actual hiding/showing of the second page.
-                 updatePageContent(rightPageIndex, 'right-content', 'right-number', `<p>Hidden on mobile.</p>`);
-            }
-            
-            document.getElementById('page-input').value = leftPageIndex + 1; // Always show the first page of the spread in the input
-            document.getElementById('prev-page-btn').disabled = leftPageIndex === 0;
-            document.getElementById('next-page-btn').disabled = rightPageIndex + 1 >= bookContent.length;
-            
-            renderSidebar(document.getElementById('search-input').value.toLowerCase());
-        }
-
-        // --- CORRECTED FEATURE: ADD NEW SPREAD (Appends to End) ---
-        function addNewSpread() {
-            saveCurrentSpreadContent(false);
-            
-            const newSpreadStartPage = bookContent.length + 1;
-            
-            // Append two new, empty pages to the very end of the array
-            bookContent.push(''); 
-            bookContent.push(''); 
-            
-            localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(bookContent));
-            
-            currentPage = newSpreadStartPage; 
-            
-            updateBookDisplay();
-            document.getElementById('left-content').focus();
-
-            alert(`New spread added: Pages ${newSpreadStartPage} and ${newSpreadStartPage + 1} appended to the end!`);
-        }
-
-
-        // --- DELETE SPREAD FEATURE (Simplified) ---
-
-        function deleteCurrentSpread() {
-            const leftIndex = currentPage - 1;
-            
-            if (bookContent.length <= 2) {
-                alert("Cannot delete the last remaining spread!");
-                return;
-            }
-
-            // In responsive mode, we allow deletion of a single page if the spread is odd/single.
-            // If the current spread contains two pages, delete both.
-            let deleteCount = (leftIndex < bookContent.length - 1) ? 2 : 1; 
-            let pagesDeleted = `pages ${leftIndex + 1} and ${leftIndex + 2}`;
-
-            if (deleteCount === 1) {
-                 pagesDeleted = `page ${leftIndex + 1}`;
-            }
-
-            if (confirm(`Are you sure you want to permanently delete ${pagesDeleted}?`)) {
-                
-                // Remove the pages from the array
-                bookContent.splice(leftIndex, deleteCount);
-                
-                // If we deleted the last remaining page(s), go back one spread
-                if (leftIndex >= bookContent.length) {
-                    currentPage = Math.max(1, bookContent.length - 1); 
+                const nextPageIndex = pageIndex + 1;
+                if (nextPageIndex >= bookPages.length) {
+                    bookPages.push(overflowHTML);
+                    bookPages.push('');
                 } else {
-                    currentPage = leftIndex + 1;
+                    bookPages[nextPageIndex] = overflowHTML + (bookPages[nextPageIndex] || '');
                 }
 
-                saveCurrentSpreadContent(false);
-                
-                // Re-load the content for the current page and trigger flow for any shifting content
-                if (document.getElementById('left-content')) {
-                    document.getElementById('left-content').innerHTML = bookContent[currentPage - 1] || '';
-                    splitContent(document.getElementById('left-content')); 
-                }
+                saveBook();
+                updateDisplay();
 
-                updateBookDisplay();
-                alert(`${pagesDeleted} deleted and content successfully shifted.`);
+                if (pageIndex === currentSpread + 1) {
+                    setTimeout(() => {
+                        currentSpread += 2;
+                        updateDisplay();
+                        document.getElementById('leftContent').focus();
+                    }, 100);
+                }
             }
         }
 
+        // Format text
+        function formatText(command, value = null) {
+            document.execCommand(command, false, value);
+        }
 
-        // --- Utility Functions ---
+        // Export to PDF
+        async function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            let yPosition = 20;
+            const pageHeight = 280;
+            const margin = 20;
+            const maxWidth = 170;
 
-        function highlightText(element, pattern) {
-            element.innerHTML = element.innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-            if (!pattern) return;
-
-            function wrapText(node) {
-                if (node.nodeType === 3) { 
-                    const text = node.nodeValue;
-                    const regex = new RegExp(pattern, 'gi');
-                    const highlightedText = text.replace(regex, (match) => `<mark class="search-highlight">${match}</mark>`);
+            for (let i = 0; i < bookPages.length; i++) {
+                // Remove HTML tags and get plain text
+                let text = bookPages[i].replace(/<[^>]*>/g, '');
+                // Remove search highlights
+                text = text.replace(/\s+/g, ' ').trim();
+                
+                if (text) {
+                    // Add page number
+                    doc.setFontSize(10);
+                    doc.text(`Page ${i + 1}`, margin, yPosition);
+                    yPosition += 10;
                     
-                    if (highlightedText !== text) {
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = highlightedText;
-                        while (tempDiv.firstChild) {
-                            node.parentNode.insertBefore(tempDiv.firstChild, node);
+                    // Add content
+                    doc.setFontSize(12);
+                    const lines = doc.splitTextToSize(text, maxWidth);
+                    
+                    for (let line of lines) {
+                        if (yPosition > pageHeight) {
+                            doc.addPage();
+                            yPosition = 20;
                         }
-                        node.parentNode.removeChild(node);
+                        doc.text(line, margin, yPosition);
+                        yPosition += 7;
                     }
-                } else if (node.nodeType === 1 && node.nodeName !== 'MARK') { 
-                    Array.from(node.childNodes).forEach(wrapText);
-                }
-            }
-            
-            wrapText(element);
-        }
-
-        
-        function renderSidebar(query = '') {
-            const pageList = document.getElementById('page-list');
-            pageList.innerHTML = ''; 
-            saveCurrentSpreadContent(false); 
-            updateBookDisplayContentsOnly(); 
-            let searchResults = [];
-
-            if (query.length > 0) {
-                 bookContent.forEach((html, index) => {
-                    const text = html.toLowerCase().replace(/<[^>]*>/g, ''); 
-                    if (text.includes(query)) {
-                        searchResults.push(index);
+                    
+                    // Add spacing between pages
+                    yPosition += 15;
+                    
+                    if (yPosition > pageHeight - 20) {
+                        doc.addPage();
+                        yPosition = 20;
                     }
-                 });
-                 
-                 highlightText(document.getElementById('left-content'), query);
-                 if (window.innerWidth > 900) {
-                    highlightText(document.getElementById('right-content'), query);
-                 }
-            } else {
-                 document.getElementById('left-content').innerHTML = document.getElementById('left-content').innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-                 document.getElementById('right-content').innerHTML = document.getElementById('right-content').innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-            }
-
-            for (let i = 0; i < bookContent.length; i += 2) {
-                const spreadStartPage = i + 1;
-                const spreadEndPage = Math.min(i + 2, bookContent.length);
-                
-                const plainText = bookContent[i].replace(/<[^>]*>/g, ''); 
-                const snippet = plainText.substring(0, 30) + (plainText.length > 30 ? '...' : ''); 
-                
-                const listItem = document.createElement('div');
-                listItem.className = 'page-list-item';
-                
-                if (searchResults.includes(i) || searchResults.includes(i + 1)) {
-                    listItem.classList.add('highlight-match');
-                }
-                
-                listItem.innerHTML = `<strong>Pgs ${spreadStartPage}-${spreadEndPage}:</strong> ${snippet}`;
-                listItem.dataset.page = spreadStartPage;
-                listItem.onclick = () => { goToSpecificPage(spreadStartPage); };
-
-                pageList.appendChild(listItem);
-            }
-        }
-        
-        function updateBookDisplayContentsOnly() {
-            const leftIndex = currentPage - 1;
-            const rightIndex = currentPage;
-            
-            if (leftIndex >= 0 && leftIndex < bookContent.length) {
-                document.getElementById('left-content').innerHTML = bookContent[leftIndex];
-            }
-            if (rightIndex < bookContent.length && window.innerWidth > 900) {
-                document.getElementById('right-content').innerHTML = bookContent[rightIndex];
-            }
-        }
-
-        // Combined save function for Manual Saves
-        function saveAllContent(showAlert = true) {
-            saveCurrentSpreadContent(false);
-            
-            if (showAlert) {
-                alert("All content saved successfully to your browser!");
-            }
-        }
-
-        function goToNextPage() {
-            const jump = (window.innerWidth <= 900) ? 1 : 2; // Jump 1 page on mobile, 2 on desktop
-            if (currentPage + jump <= bookContent.length) {
-                saveAllContent(false); 
-                currentPage += jump;
-                updateBookDisplay();
-            }
-        }
-
-        function goToPreviousPage() {
-            const jump = (window.innerWidth <= 900) ? 1 : 2; // Jump 1 page on mobile, 2 on desktop
-            if (currentPage - jump >= 1) {
-                saveAllContent(false); 
-                currentPage -= jump;
-                updateBookDisplay();
-            } else if (currentPage > 1) {
-                saveAllContent(false);
-                currentPage = 1;
-                updateBookDisplay();
-            }
-        }
-
-        function goToSpecificPage(targetPageNum) {
-            saveAllContent(false); 
-            let targetPage = targetPageNum || parseInt(document.getElementById('page-input').value);
-
-            if (isNaN(targetPage) || targetPage < 1) {
-                alert("Please enter a valid page number (1 or greater).");
-                return;
-            }
-
-            const totalPages = bookContent.length;
-            if (targetPage > totalPages) {
-                targetPage = totalPages; 
-            }
-            
-            // Adjust the current page to be the start of the visible spread
-            if (window.innerWidth > 900) {
-                // Desktop: Always land on the odd page of the spread
-                currentPage = (targetPage % 2 === 0) ? targetPage - 1 : targetPage;
-            } else {
-                 // Mobile: Land directly on the target page
-                currentPage = targetPage;
-            }
-            
-            updateBookDisplay();
-        }
-        
-        function clearCorruptedStorage() {
-            if (confirm("WARNING: This will permanently DELETE ALL saved book progress and restart the application with default text. Proceed?")) {
-                localStorage.removeItem(BOOK_STORAGE_KEY);
-                location.reload();
-            }
-        }
-        
-        // Handle window resizing (critical for responsiveness and mobile mode change)
-        window.onresize = () => updateBookDisplay();
-
-        // --- KEYBOARD Navigation Listener ---
-        document.addEventListener('keydown', function(event) {
-            if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA' && event.target.id !== 'search-input' && event.target.id !== 'page-input') {
-                if (event.key === 'ArrowRight' || event.key === 'Right') {
-                    goToNextPage();
-                    event.preventDefault(); 
-                } else if (event.key === 'ArrowLeft' || event.key === 'Left') {
-                    goToPreviousPage();
-                    event.preventDefault(); 
-                } else if (event.key === 'F10') {
-                    saveAllContent(true);
-                    event.preventDefault();
                 }
             }
+            
+            doc.save('my-book.pdf');
+        }
+
+        // Attach event listeners
+        function attachEventListeners() {
+            // Burger menu
+            document.getElementById('burgerBtn').onclick = () => {
+                document.getElementById('leftSidebar').classList.toggle('open');
+            };
+
+            // Navigation with arrow keys
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+                
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    document.getElementById('prevBtn').click();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    document.getElementById('nextBtn').click();
+                }
+            });
+
+            // Navigation buttons
+            document.getElementById('prevBtn').onclick = () => {
+                if (currentSpread >= 2) {
+                    saveCurrentPages();
+                    currentSpread -= 2;
+                    updateDisplay();
+                }
+            };
+
+            document.getElementById('nextBtn').onclick = () => {
+                if (currentSpread + 2 < bookPages.length) {
+                    saveCurrentPages();
+                    currentSpread += 2;
+                    updateDisplay();
+                }
+            };
+
+            document.getElementById('pageInput').onchange = (e) => {
+                let page = parseInt(e.target.value) - 1;
+                if (page % 2 !== 0) page--;
+                if (page >= 0 && page < bookPages.length) {
+                    saveCurrentPages();
+                    currentSpread = page;
+                    updateDisplay();
+                }
+            };
+
+            // Toolbar buttons
+            document.querySelectorAll('.toolbar-btn[data-command]').forEach(btn => {
+                btn.onclick = () => formatText(btn.dataset.command);
+            });
+
+            // Font controls
+            document.getElementById('fontFamily').onchange = (e) => {
+                formatText('fontName', e.target.value);
+            };
+
+            document.getElementById('fontSize').onchange = (e) => {
+                document.execCommand('fontSize', false, '7');
+                document.querySelectorAll('font[size="7"]').forEach(el => {
+                    el.removeAttribute('size');
+                    el.style.fontSize = e.target.value;
+                });
+            };
+
+            document.getElementById('textColor').onchange = (e) => {
+                formatText('foreColor', e.target.value);
+            };
+
+            // Content editing
+            const leftContent = document.getElementById('leftContent');
+            const rightContent = document.getElementById('rightContent');
+
+            leftContent.addEventListener('input', () => {
+                setTimeout(() => handleOverflow(leftContent, currentSpread), 0);
+            });
+
+            rightContent.addEventListener('input', () => {
+                setTimeout(() => handleOverflow(rightContent, currentSpread + 1), 0);
+            });
+
+            // Paste handling
+            [leftContent, rightContent].forEach((el, idx) => {
+                el.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData('text/html') || e.clipboardData.getData('text/plain');
+                    document.execCommand('insertHTML', false, text);
+                    setTimeout(() => handleOverflow(el, currentSpread + idx), 0);
+                });
+            });
+
+            // Add spread
+            document.getElementById('addSpreadBtn').onclick = () => {
+                saveCurrentPages();
+                bookPages.push('', '');
+                saveBook();
+                alert('New spread added at the end!');
+                updateDisplay();
+            };
+
+            // Delete spread
+            document.getElementById('deleteSpreadBtn').onclick = () => {
+                if (bookPages.length <= 2) {
+                    alert('Cannot delete the last spread!');
+                    return;
+                }
+                if (confirm('Delete current spread?')) {
+                    bookPages.splice(currentSpread, 2);
+                    if (currentSpread >= bookPages.length) {
+                        currentSpread = Math.max(0, bookPages.length - 2);
+                    }
+                    saveBook();
+                    updateDisplay();
+                }
+            };
+
+            // Save/Export to PDF
+            document.getElementById('saveBtn').onclick = () => {
+                saveCurrentPages();
+                exportToPDF();
+            };
+
+            // Search with highlighting
+            document.getElementById('searchBox').addEventListener('input', (e) => {
+                currentSearchQuery = e.target.value.trim();
+                updateDisplay();
+            });
+        }
+
+        // Save current visible pages
+        function saveCurrentPages() {
+            // Remove highlights before saving
+            const leftHTML = document.getElementById('leftContent').innerHTML;
+            const rightHTML = document.getElementById('rightContent').innerHTML;
+            
+            bookPages[currentSpread] = leftHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
+            if (currentSpread + 1 < bookPages.length) {
+                bookPages[currentSpread + 1] = rightHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
+            }
+            saveBook();
+        }
+
+        // Auto-save before leaving
+        window.addEventListener('beforeunload', () => {
+            saveCurrentPages();
         });
 
-
-        // --- Event Listeners ---
-        
-        document.getElementById('sidebar-toggle').addEventListener('click', () => {
-            const sidebar = document.getElementById('sidebar-left');
-            sidebar.classList.toggle('active');
-            if (!sidebar.classList.contains('active')) {
-                saveAllContent(false);
-            }
-        });
-
-        document.getElementById('next-page-btn').addEventListener('click', goToNextPage);
-        document.getElementById('prev-page-btn').addEventListener('click', goToPreviousPage);
-        document.getElementById('go-btn').addEventListener('click', () => goToSpecificPage());
-        
-        document.getElementById('delete-spread-btn').addEventListener('click', deleteCurrentSpread);
-        
-        document.getElementById('add-spread-btn').addEventListener('click', addNewSpread);
-        
-        document.getElementById('save-all-btn').addEventListener('click', () => saveAllContent(true));
-        document.getElementById('save-all-btn-toolbar').addEventListener('click', () => saveAllContent(true)); 
-        
-        document.getElementById('search-input').addEventListener('input', () => renderSidebar(document.getElementById('search-input').value.toLowerCase()));
-
-        document.getElementById('left-content').addEventListener('click', (e) => e.currentTarget.focus());
-        document.getElementById('right-content').addEventListener('click', (e) => e.currentTarget.focus());
-        
-        document.getElementById('clear-storage-btn').addEventListener('click', clearCorruptedStorage);
-
-
-        // Initialization
-        updateBookDisplay();
+        // Start
+        init();
     </script>
 </body>
 </html>
