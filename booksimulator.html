@@ -137,6 +137,17 @@
             height: auto !important; 
         }
 
+        /* NEW Add Spread Button Styling (Blue/Add Icon) */
+        #add-spread-btn {
+            color: #3498db !important;
+            background-color: #f0f8ff !important;
+            border: 1px solid #3498db55;
+        }
+        #add-spread-btn:hover {
+            color: white !important;
+            background-color: #3498db !important;
+        }
+
         /* --- Main Content Area --- */
         .main-content {
             flex-grow: 1;
@@ -229,6 +240,10 @@
             <button id="go-btn" title="Go to Page"><i class="material-icons">send</i></button>
             <button id="next-page-btn" title="Next Spread (or Right Arrow)"><i class="material-icons">arrow_forward</i></button>
         </div>
+        
+        <span style="border-bottom: 1px solid #ddd; width: 90%; margin: 5px 0;"></span>
+        
+        <button id="add-spread-btn" title="Add New Spread (Pages)"><i class="material-icons">add_box</i></button>
         
         <span style="border-bottom: 1px solid #ddd; width: 90%; margin: 5px 0;"></span>
         
@@ -444,6 +459,32 @@
             
             renderSidebar(document.getElementById('search-input').value.toLowerCase());
         }
+
+        // --- CORRECTED FEATURE: ADD NEW SPREAD (Appends to End) ---
+        function addNewSpread() {
+            // 1. Save all current work first (important to capture any unsaved changes)
+            saveAllContent(false);
+            
+            // Calculate the page number for the start of the new spread
+            const newSpreadStartPage = bookContent.length + 1;
+            
+            // 2. Append two new, empty pages to the very end of the array
+            bookContent.push(''); 
+            bookContent.push(''); 
+            
+            // 3. Set the entire array to Local Storage immediately
+            localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(bookContent));
+            
+            // 4. Navigate the user to the start of the new spread
+            currentPage = newSpreadStartPage; 
+            
+            // 5. Update the display and focus
+            updateBookDisplay();
+            document.getElementById('left-content').focus();
+
+            alert(`New spread added: Pages ${newSpreadStartPage} and ${newSpreadStartPage + 1} appended to the end!`);
+        }
+
 
         // --- DELETE SPREAD FEATURE ---
 
@@ -689,6 +730,9 @@
         document.getElementById('go-btn').addEventListener('click', () => goToSpecificPage());
         
         document.getElementById('delete-spread-btn').addEventListener('click', deleteCurrentSpread);
+        
+        // EVENT LISTENER for the Add Spread button
+        document.getElementById('add-spread-btn').addEventListener('click', addNewSpread);
         
         document.getElementById('save-all-btn').addEventListener('click', () => saveAllContent(true));
         document.getElementById('save-all-btn-toolbar').addEventListener('click', () => saveAllContent(true)); 
