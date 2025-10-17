@@ -3,16 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Writer's Book Visualizer</title>
+    <!-- CRITICAL FIX: Disable aggressive browser caching -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <title>Professional Writer's Book Visualizer (Responsive)</title>
     
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <style>
         :root {
-            /* Define dimensions for a common book size (e.g., 6" x 9") ratio */
-            --page-width: 400px; 
-            --page-height: 620px; 
-            --sidebar-width: 200px;
+            /* Responsive Dimensions based on ratio, not fixed pixels */
+            --book-aspect-ratio: 0.65; /* Standard 6"x9" book ratio */
+            --max-page-width: 450px;
+            --min-margin: 10px;
+            --sidebar-width: 250px;
         }
         
         body {
@@ -25,10 +31,118 @@
             margin: 0;
             padding: 0;
             min-height: 100vh;
+            /* Allow vertical scrolling only if content is too large vertically */
+            overflow-y: auto; 
+            overflow-x: hidden;
+        }
+
+        /* --- Global Layout --- */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 20px 0;
+            min-height: 100vh;
+        }
+
+        .book-container {
+            display: flex;
+            gap: 1.5vw; /* Responsive gap */
+            justify-content: center;
+            align-items: center;
+            /* Ensure the book container shrinks on smaller screens */
+            max-width: calc(2 * var(--max-page-width) + 2 * 1.5vw); 
+            width: 95%; 
+            padding: 20px;
+        }
+
+        /* --- Page Styling (CRITICAL FIXES FOR RESPONSIVENESS) --- */
+        .page {
+            /* Max width for desktop viewing */
+            max-width: var(--max-page-width); 
+            /* Page width is responsive, takes half the container space */
+            width: 50%; 
+            /* Maintain book ratio responsively */
+            aspect-ratio: var(--book-aspect-ratio); 
+            
+            background-color: #fffaf0; 
+            border: 1px solid #dcdcdc; 
+            padding: 4% 6%; /* Responsive padding based on page size */
+            box-sizing: border-box;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3); 
+            position: relative;
+            cursor: text; 
+            font-size: clamp(14px, 1.2vw, 16px); /* Fluid typography */
+            line-height: 1.6;
+            overflow: hidden; 
+            min-width: 250px; /* Prevent page from becoming too narrow */
+        }
+
+        /* Single page view for mobile (less than 900px wide) */
+        @media (max-width: 900px) {
+            .book-container {
+                flex-direction: column;
+                gap: 20px;
+                padding: 10px;
+            }
+            .page {
+                width: 90%; /* Single page takes up most of the screen width */
+                max-width: 400px;
+                margin: 0 auto;
+            }
+            /* Hide the right page on mobile for single-page view */
+            .page:last-child {
+                display: none; 
+            }
+            .toolbar-right {
+                width: 100%;
+                height: auto;
+                position: static;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                padding-bottom: 20px;
+                box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
+            }
+            .controls-nav {
+                flex-direction: row;
+                gap: 10px;
+                border-bottom: none;
+                width: auto;
+            }
+        }
+        
+        /* Ensure content takes up the full inner space of the page */
+        .page-content {
+            height: 100%; 
             overflow: hidden; 
         }
 
-        /* --- LEFT Sidebar (Collapsible - Navigation & Search) --- */
+        /* Basic content styling */
+        .page h2 {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.2em;
+            margin-top: 1.5em;
+            margin-bottom: 1em;
+            font-weight: bold;
+        }
+
+        /* Page Numbering */
+        .page-number {
+            position: absolute; 
+            bottom: 15px; 
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.8em;
+            color: #7f8c8d; 
+            pointer-events: none;
+        }
+        
+        /* --- SIDEBAR & TOOLBAR --- */
+
         .sidebar-left {
             position: fixed;
             top: 0;
@@ -43,30 +157,8 @@
             transform: translateX(-100%); 
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
             z-index: 1000;
-            font-family: Arial, sans-serif;
         }
         .sidebar-left.active { transform: translateX(0); }
-        .sidebar-left h2 { margin-top: 0; border-bottom: 1px solid #4a637a; padding-bottom: 10px; font-size: 1.2em; color: #ecf0f1; }
-        .page-list-item { padding: 8px 6px; margin-bottom: 5px; cursor: pointer; border-radius: 4px; font-size: 0.9em; transition: background-color 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .page-list-item:hover { background-color: #3e5a76; }
-        
-        /* --- Burger Icon --- */
-        #sidebar-toggle {
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 1001;
-            cursor: pointer;
-            color: #2c3e50;
-            font-size: 32px;
-            background: white;
-            border-radius: 5px;
-            padding: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            line-height: 1;
-        }
-
-        /* --- RIGHT Toolbar (Fixed - Editing & Controls) --- */
         .toolbar-right {
             position: fixed;
             top: 0;
@@ -84,137 +176,19 @@
             overflow-y: auto;
         }
         
-        /* UI Improvement: Shared Button Styles */
-        .toolbar-right button {
-            width: 50px;
-            height: 50px;
-            border: none;
-            cursor: pointer;
-            background: none;
-            color: #555;
-            font-size: 24px;
-            line-height: 1;
-            transition: color 0.2s, background-color 0.2s;
+        .toolbar-right button, #sidebar-toggle {
+             transition: all 0.2s;
         }
         
-        .toolbar-right button:hover {
-            color: #1abc9c; 
-            background-color: #e8f5e9;
-            border-radius: 4px;
-        }
-        
-        /* Navigation Controls inside Right Toolbar */
-        .controls-nav {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 5px 0;
-            border-bottom: 1px solid #ddd; 
-            width: 90%;
-        }
-        .controls-nav button { margin: 5px 0; font-size: 20px; color: #3498db; }
-        .controls-nav label { font-size: 0.8em; margin-top: 5px; color: #333; }
-        .controls-nav input[type="number"] { width: 40px; text-align: center; margin-bottom: 5px; padding: 4px; border: 1px solid #ccc; }
-        
-        /* Save Button Styling (Green) */
-        #save-all-btn-toolbar { 
-            color: white !important; 
-            background-color: #2ecc71 !important; 
-            font-size: 14px !important; 
-            padding: 8px !important; 
-            margin-top: 10px; 
-            width: 60px !important; 
-            height: auto !important; 
-        }
-        
-        /* DELETE Button Styling (Red) */
-        #delete-spread-btn {
-            color: white !important;
-            background-color: #e74c3c !important;
-            font-size: 14px !important; 
-            padding: 8px !important; 
-            width: 60px !important; 
-            height: auto !important; 
-        }
+        /* Standard Toolbar Button Styles */
+        #add-spread-btn { color: #3498db !important; background-color: #f0f8ff !important; border: 1px solid #3498db55; }
+        #add-spread-btn:hover { color: white !important; background-color: #3498db !important; }
+        #save-all-btn-toolbar { color: white !important; background-color: #2ecc71 !important; }
+        #delete-spread-btn { color: white !important; background-color: #e74c3c !important; }
 
-        /* NEW Add Spread Button Styling (Blue/Add Icon) */
-        #add-spread-btn {
-            color: #3498db !important;
-            background-color: #f0f8ff !important;
-            border: 1px solid #3498db55;
-        }
-        #add-spread-btn:hover {
-            color: white !important;
-            background-color: #3498db !important;
-        }
-
-        /* --- Main Content Area --- */
-        .main-content {
-            flex-grow: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100vh;
-        }
-
-        /* --- Book Structure --- */
-        .book-container {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .page {
-            width: var(--page-width); 
-            height: var(--page-height);
-            background-color: #fffaf0; 
-            border: 1px solid #dcdcdc; 
-            padding: 30px; 
-            padding-bottom: 40px; 
-            box-sizing: border-box;
-            box-shadow: 10px 10px 25px rgba(0, 0, 0, 0.2); 
-            position: relative;
-            cursor: text; 
-            font-size: 16px; 
-            line-height: 1.6;
-            overflow: hidden; 
-        }
-        
-        /* The editable area now only contains the content */
-        .page-content {
-            height: 100%; 
-            overflow: hidden; 
-        }
-        
-        /* The search highlight should be a simple mark element */
-        mark.search-highlight {
-            background-color: yellow; 
-            color: black;
-            padding: 0 1px;
-        }
-        
-        /* --- Page Number Positioning (Fixed) */
-        .page-number {
-            position: absolute; 
-            bottom: 15px; 
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 0.8em;
-            color: #7f8c8d; 
-            pointer-events: none;
-        }
-        
-        /* Reset Button Styling */
-        #clear-storage-btn {
-            background-color: #e74c3c;
-            width: 90%;
-            margin-top: 10px;
-            font-size: 12px !important;
-            padding: 10px;
-        }
+        /* General UI Styling */
+        .toolbar-right button, .sidebar-left button { border-radius: 4px; }
+        .sidebar-left input { padding: 8px; border-radius: 4px; border: none; }
     </style>
 </head>
 <body tabindex="0"> 
@@ -225,7 +199,8 @@
         <h2>Book Navigation</h2>
         <input type="text" id="search-input" placeholder="Dynamic Search..." style="width: 90%; margin-bottom: 10px;">
         <div id="page-list">
-            </div>
+            <!-- Page List items generated here -->
+        </div>
         <button id="save-all-btn" title="Manual Save" style="background-color: #2ecc71; width: 90%; margin-top: 20px;">Save All Content</button>
         
         <button id="clear-storage-btn"><i class="material-icons" style="font-size: 16px;">delete_sweep</i> CLEAR CORRUPTED DATA</button>
@@ -289,11 +264,11 @@
         const BOOK_STORAGE_KEY = 'writerBookContent';
         
         // Load content from Local Storage or use a mock if none exists
-        // Cleaned up the messy inline CSS from the previous submission for better consistency.
+        // CLEANED UP CONTENT: Removed all the messy inline CSS from the previous submission.
         let bookContent = JSON.parse(localStorage.getItem(BOOK_STORAGE_KEY)) || [
-            "<h2>Chapter 1 — The Letter by the Sea</h2><p>The day had begun as plain as warm bread and wind. The horizon stretched silver and quiet, and gulls drew uneven circles above the old fishing pier.</p><p>Elara had walked this beach every dawn for a year, waiting for a sign that never came. Her brother had vanished in the storm that swallowed three boats last winter, and though the sea had returned ropes, barrels, and one broken oar, it had never returned him. Still, she walked.</p><p>That morning the tide left something new—a sealed letter wrapped in seaweed, its wax as red as a drop of blood. It lay half‑buried beside her footprints.</p><p><em>To the one who still watches the horizon</em>, the letter read in ink faded by salt.</p><p>When she broke the seal open, her pulse faltered. Inside was one line, uneven and hurried:<br><em>When the lighthouse goes dark, follow the music.</em></p><p>All day she turned the words over. The lighthouse hadn’t gone dark in fifty years, not since her father maintained it, not since before the sea began keeping secrets.</p><p style=\"text-align: center;\"></p><p>But at twilight, when the clouds folded low and gulls hid themselves in fog, the beam atop the old tower sputtered once—twice—and died.</p><p>Page 2. This page is empty, waiting for the overflow text from the previous page.</p>",
-            "<h2>Chapter 2 — The Song Beneath the Waves</h2><p>The ocean at night looked almost alive, breathing slow and deep. Elara rowed into it, the lantern on her prow swinging in rhythm with her heartbeat.</p><p>Her father used to say the sea had moods. Tonight it was listening.</p><p>The melody rose out of the fog first as vibration—a half‑heard hum running down her bones. Then came the notes: low, tremulous, like a violin being played somewhere in the deep. The sound drifted from the direction of the lighthouse, and though every sensible part of her begged her to turn back, she kept rowing.</p><p>The tower’s shadow loomed, jagged and black. Its base was now half‑submerged, waves lapping over steps that once led to the old keeper’s door. She tied her boat to what remained of the railing and climbed, one wet stone at a time. Inside, broken lenses gleamed faintly in the lantern light.</p><p>Water covered the floor. And there, floating upright in the flooded chamber, was a violin. Its strings shimmered though no one played them, and around it, the glow of her lantern bent as if drawn toward the sound.</p><p>When her fingertips brushed the neck of the violin, her breath caught. Images burst under her skin: a younger version of her brother laughing on that very pier, her father tuning the tower’s great lens to the rhythm of waves, and storms that ended not with wrecks—but with music</p><p></p><p>Then the light collapsed all at once, leaving her in darkness thick and humming.</p>",
-            "<h2>Chapter 3 — The Keeper’s Promise</h2><p>When she woke, the sky outside the tower was streaked rose and violet. The sun was rising again, but something in the world had shifted. The clock above the door ticked backward for a single breath before righting itself.</p><p>Elara stood at the railing, her lantern relit, but the flame burned silver now instead of gold. In her other hand she held the violin—silent, but warm. The lighthouse lens caught the morning’s first light and sent it out across the sea, turning the horizon molten.</p><p>She had not found a body, nor a ghost. What she found was continuity: sound woven into sea‑foam, voices folded into mist. The light she re‑kindled shone steadier than before, beating with her own pulse.</p><p>From that day, sailors spoke of a beacon that sang. They said its glow moved with the rhythm of waves, like a heartbeat under the ocean’s skin.</p><p>And sometimes, at dawn, when the tide curled just low enough, a letter would drift ashore again—ink washed thin, seal cracked by salt—waiting for the next soul who refused to stop watching the horizon.</p><p></p><p><em>Addressed to: whoever still hears the song.</em></p><p><br></p>"
+            "<h2>Chapter 1 — The Letter by the Sea</h2><p>The day had begun as plain as warm bread and wind. The horizon stretched silver and quiet, and gulls drew uneven circles above the old fishing pier.</p><p>Elara had walked this beach every dawn for a year, waiting for a sign that never came. Her brother had vanished in the storm that swallowed three boats last winter, and though the sea had returned ropes, barrels, and one broken oar, it had never returned him. Still, she walked.</p><p>That morning the tide left something new—a sealed letter wrapped in seaweed, its wax as red as a drop of blood. It lay half‑buried beside her footprints.</p><p><em>To the one who still watches the horizon</em>, the letter read in ink faded by salt.</p><p>When she broke the seal open, her pulse faltered. Inside was one line, uneven and hurried:<br><em>When the lighthouse goes dark, follow the music.</em></p><p>All day she turned the words over. The lighthouse hadn’t gone dark in fifty years, not since her father maintained it, not since before the sea began keeping secrets.</p><p>But at twilight, when the clouds folded low and gulls hid themselves in fog, the beam atop the old tower sputtered once—twice—and died.</p><p>Page 2. This page is empty, waiting for the overflow text from the previous page.</p>",
+            "<h2>Chapter 2 — The Song Beneath the Waves</h2><p>The ocean at night looked almost alive, breathing slow and deep. Elara rowed into it, the lantern on her prow swinging in rhythm with her heartbeat.</p><p>Her father used to say the sea had moods. Tonight it was listening.</p><p>The melody rose out of the fog first as vibration—a half‑heard hum running down her bones. Then came the notes: low, tremulous, like a violin being played somewhere in the deep. The sound drifted from the direction of the lighthouse, and though every sensible part of her begged her to turn back, she kept rowing.</p><p>The tower’s shadow loomed, jagged and black. Its base was now half‑submerged, waves lapping over steps that once led to the old keeper’s door. She tied her boat to what remained of the railing and climbed, one wet stone at a time. Inside, broken lenses gleamed faintly in the lantern light.</p><p>Water covered the floor. And there, floating upright in the flooded chamber, was a violin. Its strings shimmered though no one played them, and around it, the glow of her lantern bent as if drawn toward the sound.</p><p>When her fingertips brushed the neck of the violin, her breath caught. Images burst under her skin: a younger version of her brother laughing on that very pier, her father tuning the tower’s great lens to the rhythm of waves, and storms that ended not with wrecks—but with music</p><p>Then the light collapsed all at once, leaving her in darkness thick and humming.</p>",
+            "<h2>Chapter 3 — The Keeper’s Promise</h2><p>When she woke, the sky outside the tower was streaked rose and violet. The sun was rising again, but something in the world had shifted. The clock above the door ticked backward for a single breath before righting itself.</p><p>Elara stood at the railing, her lantern relit, but the flame burned silver now instead of gold. In her other hand she held the violin—silent, but warm. The lighthouse lens caught the morning’s first light and sent it out across the sea, turning the horizon molten.</p><p>She had not found a body, nor a ghost. What she found was continuity: sound woven into sea‑foam, voices folded into mist. The light she re‑kindled shone steadier than before, beating with her own pulse.</p><p>From that day, sailors spoke of a beacon that sang. They said its glow moved with the rhythm of waves, like a heartbeat under the ocean’s skin.</p><p>And sometimes, at dawn, when the tide curled just low enough, a letter would drift ashore again—ink washed thin, seal cracked by salt—waiting for the next soul who refused to stop watching the horizon.</p><p><em>Addressed to: whoever still hears the song.</em></p>"
         ];
 
         // --- Rich Text Formatting Function (using document.execCommand) ---
@@ -342,7 +317,6 @@
                 contentEl.innerHTML = tempDiv.innerHTML;
                 
                 // 3. Save the clean content for the current page
-                // CRITICAL FIX: Ensure saved content is free of search highlights
                 bookContent[pageIndex] = contentEl.innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
                 
                 // 4. Handle Next Page (Auto-Creation and Transfer)
@@ -365,16 +339,13 @@
                 
                 let focusEl = null;
                 if (pageIndex === currentPage - 1) {
-                    // Overflow from LEFT page (Page N) flows to RIGHT page (Page N+1)
                     updateBookDisplay(); 
                     focusEl = document.getElementById('right-content'); 
                 } else if (pageIndex === currentPage) {
-                    // Overflow from RIGHT page (Page N+1) flows to LEFT page of next spread (Page N+2)
-                    currentPage = nextPageIndex; // Navigate to new spread start
+                    currentPage = nextPageIndex;
                     updateBookDisplay();
                     focusEl = document.getElementById('left-content');
                 } else if (pageIndex > currentPage + 1) {
-                    // Safety case: If overflowed several pages, navigate to the correct spread
                     currentPage = nextPageIndex % 2 === 0 ? nextPageIndex - 1 : nextPageIndex;
                     updateBookDisplay(); 
                     focusEl = document.getElementById('left-content');
@@ -383,7 +354,6 @@
                 // Force focus on the element containing the overflow text
                 if (focusEl) focusEl.focus();
 
-                // Advance the index for the next loop iteration (Page N -> Page N+1)
                 pageIndex++;
             }
         }
@@ -406,10 +376,33 @@
 
             // 2. Handle Overflow
             setTimeout(() => {
+                // IMPORTANT: Before checking scrollHeight, save content back to bookContent 
+                // in case the user edited content that is NOT overflowing, 
+                // preventing loss if an overflow happens later in the chain.
+                saveCurrentSpreadContent(false);
+                
                 if (contentEl.scrollHeight > contentEl.clientHeight) {
                     splitContent(contentEl);
                 }
             }, 0);
+        }
+
+        // Dedicated save function for just the two visible pages
+        function saveCurrentSpreadContent(showAlert = true) {
+            const leftContentEl = document.getElementById('left-content');
+            const rightContentEl = document.getElementById('right-content');
+            
+            const extractAndClean = (contentDiv, pageElId) => {
+                const pageEl = document.getElementById(pageElId);
+                const index = parseInt(pageEl.dataset.pageIndex);
+                if (contentDiv && !isNaN(index) && index >= 0 && index < bookContent.length) {
+                    let content = contentDiv.innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
+                    bookContent[index] = content.trim();
+                }
+            };
+            extractAndClean(leftContentEl, 'left-page');
+            extractAndClean(rightContentEl, 'right-page');
+            localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(bookContent));
         }
         
         // --- Page Update Functions ---
@@ -419,28 +412,28 @@
             const contentEl = document.getElementById(contentId);
             const numberEl = document.getElementById(numberId);
 
-            if (index >= 0 && index < bookContent.length) {
-                // Load clean content into the editable div
-                contentEl.innerHTML = bookContent[index]; 
-                numberEl.textContent = index + 1;
-                pageEl.dataset.pageIndex = index; 
-                
-                contentEl.oninput = checkAndHandleContent; 
-                contentEl.onpaste = (e) => {
-                    e.preventDefault(); 
-                    const text = (e.clipboardData || window.clipboardData).getData('text/html') || 
-                                 (e.clipboardData || window.clipboardData).getData('text/plain');
-                    document.execCommand('insertHTML', false, text); 
-                    setTimeout(() => splitContent(contentEl), 0); 
-                };
-
+            // Hide page if index is out of bounds for the array length
+            if (index < 0 || index >= bookContent.length) {
+                pageEl.style.visibility = 'hidden';
+                return;
             } else {
-                contentEl.innerHTML = defaultText;
-                numberEl.textContent = '';
-                pageEl.removeAttribute('contenteditable');
-                contentEl.oninput = null;
-                contentEl.onpaste = null;
+                pageEl.style.visibility = 'visible';
             }
+
+            // Load clean content and set up event listeners
+            contentEl.innerHTML = bookContent[index]; 
+            numberEl.textContent = index + 1;
+            pageEl.dataset.pageIndex = index; 
+            
+            contentEl.contentEditable = true;
+            contentEl.oninput = checkAndHandleContent; 
+            contentEl.onpaste = (e) => {
+                e.preventDefault(); 
+                const text = (e.clipboardData || window.clipboardData).getData('text/html') || 
+                             (e.clipboardData || window.clipboardData).getData('text/plain');
+                document.execCommand('insertHTML', false, text); 
+                setTimeout(() => splitContent(contentEl), 0); 
+            };
         }
 
 
@@ -449,34 +442,37 @@
             const rightPageIndex = currentPage;
 
             updatePageContent(leftPageIndex, 'left-content', 'left-number', `<p><h2>Cover/Start</h2>Click next to begin reading.</p>`);
-            updatePageContent(rightPageIndex, 'right-content', 'right-number', `<p><h2>The End</h2>Thank you for visualizing your work!</p>`);
             
-            document.getElementById('page-input').value = currentPage;
-            document.getElementById('prev-page-btn').disabled = currentPage <= 1;
-            document.getElementById('next-page-btn').disabled = currentPage + 1 >= bookContent.length;
+            // On mobile, the right page is hidden by CSS, so we only show the left one.
+            if (window.innerWidth > 900) {
+                 updatePageContent(rightPageIndex, 'right-content', 'right-number', `<p><h2>The End</h2>Thank you for visualizing your work!</p>`);
+            } else {
+                 // On mobile, we still load the content but keep it invisible via CSS to allow navigation logic to work
+                 // The CSS @media query handles the actual hiding/showing of the second page.
+                 updatePageContent(rightPageIndex, 'right-content', 'right-number', `<p>Hidden on mobile.</p>`);
+            }
+            
+            document.getElementById('page-input').value = leftPageIndex + 1; // Always show the first page of the spread in the input
+            document.getElementById('prev-page-btn').disabled = leftPageIndex === 0;
+            document.getElementById('next-page-btn').disabled = rightPageIndex + 1 >= bookContent.length;
             
             renderSidebar(document.getElementById('search-input').value.toLowerCase());
         }
 
         // --- CORRECTED FEATURE: ADD NEW SPREAD (Appends to End) ---
         function addNewSpread() {
-            // 1. Save all current work first (important to capture any unsaved changes)
-            saveAllContent(false);
+            saveCurrentSpreadContent(false);
             
-            // Calculate the page number for the start of the new spread
             const newSpreadStartPage = bookContent.length + 1;
             
-            // 2. Append two new, empty pages to the very end of the array
+            // Append two new, empty pages to the very end of the array
             bookContent.push(''); 
             bookContent.push(''); 
             
-            // 3. Set the entire array to Local Storage immediately
             localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(bookContent));
             
-            // 4. Navigate the user to the start of the new spread
             currentPage = newSpreadStartPage; 
             
-            // 5. Update the display and focus
             updateBookDisplay();
             document.getElementById('left-content').focus();
 
@@ -484,59 +480,59 @@
         }
 
 
-        // --- DELETE SPREAD FEATURE ---
+        // --- DELETE SPREAD FEATURE (Simplified) ---
 
         function deleteCurrentSpread() {
             const leftIndex = currentPage - 1;
-            const rightIndex = currentPage;
-
+            
             if (bookContent.length <= 2) {
                 alert("Cannot delete the last remaining spread!");
                 return;
             }
 
-            if (confirm(`Are you sure you want to permanently delete pages ${leftIndex + 1} and ${rightIndex + 1}?`)) {
-                // 1. Get the content of the pages *after* the deleted spread
-                let contentToShift = '';
-                if (rightIndex + 1 < bookContent.length) {
-                    contentToShift = bookContent[rightIndex + 1] + bookContent[rightIndex + 2];
-                }
+            // In responsive mode, we allow deletion of a single page if the spread is odd/single.
+            // If the current spread contains two pages, delete both.
+            let deleteCount = (leftIndex < bookContent.length - 1) ? 2 : 1; 
+            let pagesDeleted = `pages ${leftIndex + 1} and ${leftIndex + 2}`;
 
-                // 2. Remove the two pages from the array
-                bookContent.splice(leftIndex, 2);
+            if (deleteCount === 1) {
+                 pagesDeleted = `page ${leftIndex + 1}`;
+            }
+
+            if (confirm(`Are you sure you want to permanently delete ${pagesDeleted}?`)) {
                 
-                // 3. Insert the shifted content into the current page index
-                if (contentToShift) {
-                     bookContent[leftIndex] = contentToShift;
-                }
+                // Remove the pages from the array
+                bookContent.splice(leftIndex, deleteCount);
                 
-                // 4. Adjust current page pointer after deletion
+                // If we deleted the last remaining page(s), go back one spread
                 if (leftIndex >= bookContent.length) {
-                    currentPage = bookContent.length % 2 === 0 ? bookContent.length - 1 : bookContent.length;
+                    currentPage = Math.max(1, bookContent.length - 1); 
                 } else {
                     currentPage = leftIndex + 1;
                 }
 
-                // 5. Final save and trigger cascade (to re-flow shifted content)
-                saveAllContent(false);
-                splitContent(document.getElementById('left-content')); 
+                saveCurrentSpreadContent(false);
+                
+                // Re-load the content for the current page and trigger flow for any shifting content
+                if (document.getElementById('left-content')) {
+                    document.getElementById('left-content').innerHTML = bookContent[currentPage - 1] || '';
+                    splitContent(document.getElementById('left-content')); 
+                }
+
                 updateBookDisplay();
-                alert("Spread deleted and content successfully shifted up!");
+                alert(`${pagesDeleted} deleted and content successfully shifted.`);
             }
         }
 
 
-        // --- Final Search Stability Fix: Uses DOM Range to Highlight ---
+        // --- Utility Functions ---
 
         function highlightText(element, pattern) {
-            // Remove previous highlights
             element.innerHTML = element.innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-            
             if (!pattern) return;
 
-            // Use a temporary clone to accurately highlight text without breaking HTML nodes
             function wrapText(node) {
-                if (node.nodeType === 3) { // Text node
+                if (node.nodeType === 3) { 
                     const text = node.nodeValue;
                     const regex = new RegExp(pattern, 'gi');
                     const highlightedText = text.replace(regex, (match) => `<mark class="search-highlight">${match}</mark>`);
@@ -549,7 +545,7 @@
                         }
                         node.parentNode.removeChild(node);
                     }
-                } else if (node.nodeType === 1 && node.nodeName !== 'MARK') { // Element node (skip existing marks)
+                } else if (node.nodeType === 1 && node.nodeName !== 'MARK') { 
                     Array.from(node.childNodes).forEach(wrapText);
                 }
             }
@@ -561,15 +557,9 @@
         function renderSidebar(query = '') {
             const pageList = document.getElementById('page-list');
             pageList.innerHTML = ''; 
-
-            let searchResults = [];
-
-            // 1. Save content and remove highlights from data array before starting search
-            saveAllContent(false); 
-            
-            // Re-load the current content to ensure we start the search on a clean slate
+            saveCurrentSpreadContent(false); 
             updateBookDisplayContentsOnly(); 
-
+            let searchResults = [];
 
             if (query.length > 0) {
                  bookContent.forEach((html, index) => {
@@ -579,21 +569,19 @@
                     }
                  });
                  
-                 // Apply highlighting directly to the visible DOM elements
                  highlightText(document.getElementById('left-content'), query);
-                 highlightText(document.getElementById('right-content'), query);
+                 if (window.innerWidth > 900) {
+                    highlightText(document.getElementById('right-content'), query);
+                 }
             } else {
-                 // Clear highlights from the visible DOM elements
                  document.getElementById('left-content').innerHTML = document.getElementById('left-content').innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
                  document.getElementById('right-content').innerHTML = document.getElementById('right-content').innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
             }
 
-            // 3. Build the sidebar list
             for (let i = 0; i < bookContent.length; i += 2) {
                 const spreadStartPage = i + 1;
-                const spreadEndPage = i + 2;
+                const spreadEndPage = Math.min(i + 2, bookContent.length);
                 
-                // Get snippet from the *clean* version of the content
                 const plainText = bookContent[i].replace(/<[^>]*>/g, ''); 
                 const snippet = plainText.substring(0, 30) + (plainText.length > 30 ? '...' : ''); 
                 
@@ -616,34 +604,17 @@
             const leftIndex = currentPage - 1;
             const rightIndex = currentPage;
             
-            // Get content directly from the bookContent array (which is clean)
             if (leftIndex >= 0 && leftIndex < bookContent.length) {
                 document.getElementById('left-content').innerHTML = bookContent[leftIndex];
             }
-            if (rightIndex < bookContent.length) {
+            if (rightIndex < bookContent.length && window.innerWidth > 900) {
                 document.getElementById('right-content').innerHTML = bookContent[rightIndex];
             }
         }
 
+        // Combined save function for Manual Saves
         function saveAllContent(showAlert = true) {
-            const leftContentEl = document.getElementById('left-content');
-            const rightContentEl = document.getElementById('right-content');
-            
-            const extractAndClean = (contentDiv, pageElId) => {
-                const pageEl = document.getElementById(pageElId);
-                const index = parseInt(pageEl.dataset.pageIndex);
-
-                if (contentDiv && !isNaN(index) && index >= 0 && index < bookContent.length) {
-                    // FINAL CLEANUP: Remove any temporary search highlights before saving to storage
-                    let content = contentDiv.innerHTML.replace(/<mark class="search-highlight">(.*?)<\/mark>/gi, '$1');
-                    bookContent[index] = content.trim();
-                }
-            };
-
-            extractAndClean(leftContentEl, 'left-page');
-            extractAndClean(rightContentEl, 'right-page');
-            
-            localStorage.setItem(BOOK_STORAGE_KEY, JSON.stringify(bookContent));
+            saveCurrentSpreadContent(false);
             
             if (showAlert) {
                 alert("All content saved successfully to your browser!");
@@ -651,17 +622,19 @@
         }
 
         function goToNextPage() {
-            if (currentPage + 2 <= bookContent.length) {
+            const jump = (window.innerWidth <= 900) ? 1 : 2; // Jump 1 page on mobile, 2 on desktop
+            if (currentPage + jump <= bookContent.length) {
                 saveAllContent(false); 
-                currentPage += 2;
+                currentPage += jump;
                 updateBookDisplay();
             }
         }
 
         function goToPreviousPage() {
-            if (currentPage - 2 >= 1) {
+            const jump = (window.innerWidth <= 900) ? 1 : 2; // Jump 1 page on mobile, 2 on desktop
+            if (currentPage - jump >= 1) {
                 saveAllContent(false); 
-                currentPage -= 2;
+                currentPage -= jump;
                 updateBookDisplay();
             } else if (currentPage > 1) {
                 saveAllContent(false);
@@ -684,7 +657,14 @@
                 targetPage = totalPages; 
             }
             
-            currentPage = (targetPage % 2 === 0) ? targetPage - 1 : targetPage;
+            // Adjust the current page to be the start of the visible spread
+            if (window.innerWidth > 900) {
+                // Desktop: Always land on the odd page of the spread
+                currentPage = (targetPage % 2 === 0) ? targetPage - 1 : targetPage;
+            } else {
+                 // Mobile: Land directly on the target page
+                currentPage = targetPage;
+            }
             
             updateBookDisplay();
         }
@@ -695,6 +675,9 @@
                 location.reload();
             }
         }
+        
+        // Handle window resizing (critical for responsiveness and mobile mode change)
+        window.onresize = () => updateBookDisplay();
 
         // --- KEYBOARD Navigation Listener ---
         document.addEventListener('keydown', function(event) {
@@ -729,16 +712,13 @@
         
         document.getElementById('delete-spread-btn').addEventListener('click', deleteCurrentSpread);
         
-        // EVENT LISTENER for the Add Spread button
         document.getElementById('add-spread-btn').addEventListener('click', addNewSpread);
         
         document.getElementById('save-all-btn').addEventListener('click', () => saveAllContent(true));
         document.getElementById('save-all-btn-toolbar').addEventListener('click', () => saveAllContent(true)); 
         
-        // CRITICAL FIX: Attach search to input listener 
         document.getElementById('search-input').addEventListener('input', () => renderSidebar(document.getElementById('search-input').value.toLowerCase()));
 
-        // Fixing Edit/Navigation Conflict
         document.getElementById('left-content').addEventListener('click', (e) => e.currentTarget.focus());
         document.getElementById('right-content').addEventListener('click', (e) => e.currentTarget.focus());
         
